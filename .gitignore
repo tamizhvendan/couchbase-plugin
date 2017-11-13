@@ -1,0 +1,20 @@
+# GO specific #
+###############
+*.test
+bin/
+coverage.xml
+*.exe
+vendor/*/
+!vendor/vendor.json
+
+
+# OS generated files #
+######################
+.DS_Store*
+ehthumbs.db
+Icon?
+Thumbs.db
+
+#Output folder#
+###############
+*couchbase_plugin_*

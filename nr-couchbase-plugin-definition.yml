@@ -1,0 +1,11 @@
+name: com.newrelic.couchbase-plugin
+description: Reports status and metrics for couchbase-plugin service
+protocol_version: 1
+os: linux
+
+commands:
+  metrics:
+    command:
+      - ./bin/nr-couchbase-plugin
+      - --metrics
+    interval: 30

@@ -1,0 +1,13 @@
+integration_name: com.newrelic.couchbase-plugin
+
+instances:
+  - name: <INSTANCE IDENTIFIER>
+    command: metrics
+    arguments:
+      host: localhost
+      port: 8091
+      ssl: false
+      bucket: all 
+      node: all
+    labels:
+      key1: <LABEL_VALUE>
