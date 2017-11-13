@@ -34,7 +34,11 @@ sudo systemctl start newrelic-infra
 ## Usage
 
 Test the plugin by executing it from the command line
+
+```sh
 ./bin/nr-couchbase-plugin -hostname {host} -port {port} -bucket all -node all
+```
+
 where {host} and {port} refer to the Couchbase Server host and port.
 
 ## Compatibility
