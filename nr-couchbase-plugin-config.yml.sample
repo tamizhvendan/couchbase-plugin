@@ -7,7 +7,7 @@ instances:
       host: localhost
       port: 8091
       ssl: false
-      bucket: all 
+      bucket: all
       node: all
     labels:
       key1: <LABEL_VALUE>

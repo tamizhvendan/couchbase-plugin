@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/buger/jsonparser"
@@ -16,7 +17,7 @@ import (
 
 type argumentList struct {
 	sdkArgs.DefaultArgumentList
-	Host   string `default:"10.142.163.101" help:"Hostname or IP of the Couchbase Server"`
+	Host   string `default:"localhost" help:"Hostname or IP of the Couchbase Server"`
 	Port   int    `default:"8091" help:"Port of the Couchbase Server"`
 	SSL    bool   `default:"false" help:"Use SSL connection to Couchbase Server"`
 	Bucket string `default:"all" help:"(OPTIONAL) If not specified, all buckets will be fetched. If specified, only the specified bucket stats will be fetched"`
@@ -115,7 +116,8 @@ func populateMetrics(integration *sdk.Integration) error {
 		protocol = "https://"
 	}
 	baseURL = fmt.Sprintf("%s%s%s%d", protocol, args.Host, ":", args.Port)
-	if args.Bucket == "all" {
+	bucketArg := strings.TrimSpace(args.Bucket)
+	if bucketArg == "all" {
 		// get all bucket names
 		bucketsResponse, err2 := httpClient.Get(baseURL + "/pools/default/buckets")
 		if err2 != nil {
@@ -125,11 +127,12 @@ func populateMetrics(integration *sdk.Integration) error {
 		log.Debug("Reading bucket names")
 		listBuckets = getAllBucketNames(bucketsData)
 	} else {
-		listBuckets = []string{args.Bucket}
+		listBuckets = []string{bucketArg}
 	}
 
 	var listBucketNodes []bucketNodeInstance
-	if args.Node == "all" {
+	nodeArg := strings.TrimSpace(args.Node)
+	if nodeArg == "all" {
 		for _, bucketName := range listBuckets {
 			log.Debug("Reading nodes for bucket: " + bucketName)
 			bucketsByNodesResponse, err3 := httpClient.Get(baseURL + "/pools/default/buckets/" + bucketName + "/nodes")
@@ -142,8 +145,8 @@ func populateMetrics(integration *sdk.Integration) error {
 	} else {
 		for _, bucketName := range listBuckets {
 			log.Debug("Reading nodes for bucket: " + bucketName)
-			bucketnodeURI := fmt.Sprintf("%s%s%s%s%s", "/pools/default/buckets/", bucketName, "/nodes/", args.Node, "/stats")
-			listBucketNodes = append(listBucketNodes, bucketNodeInstance{uri: bucketnodeURI, bucket: bucketName, node: args.Node})
+			bucketnodeURI := fmt.Sprintf("%s%s%s%s%s", "/pools/default/buckets/", bucketName, "/nodes/", nodeArg, "/stats")
+			listBucketNodes = append(listBucketNodes, bucketNodeInstance{uri: bucketnodeURI, bucket: bucketName, node: nodeArg})
 		}
 	}
 
