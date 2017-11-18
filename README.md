@@ -36,7 +36,25 @@ sudo systemctl start newrelic-infra
 Test the plugin by executing it from the command line
 
 ```sh
-./bin/nr-couchbase-plugin -hostname {host} -port {port} -bucket all -node all
+Usage of ./bin/nr-couchbase-plugin:
+  -host string
+    	Hostname or IP of the Couchbase server (default "34.194.55.204")
+  -port int
+    	Port of the Couchbase server (default 8091)
+  -ssl
+    	Use SSL connection to Couchbase server
+  -username string
+    	Username for authenticating to Couchbase server
+  -password string
+    	Password for authenticating to the Couchbase server
+  -bucket string
+    	(OPTIONAL) If specified, only the specified bucket stats will be fetched (default "all")
+  -node string
+    	(OPTIONAL) If specified, only the specified node will be queried (default "all")
+  -pretty
+    	Print pretty formatted JSON.
+  -verbose
+    	Print more information to logs.
 ```
 
 where {host} and {port} refer to the Couchbase Server host and port.
