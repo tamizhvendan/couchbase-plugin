@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"crypto/tls"
 	"fmt"
 	"io/ioutil"
@@ -8,7 +9,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/buger/jsonparser"
 	sdkArgs "github.com/newrelic/infra-integrations-sdk/args"
 	"github.com/newrelic/infra-integrations-sdk/log"
 	"github.com/newrelic/infra-integrations-sdk/metric"
@@ -205,35 +205,41 @@ func populateMetrics(integration *sdk.Integration) error {
 
 func getAllBucketNames(data []byte) []string {
 	var bucketnames []string
-	jsonparser.ArrayEach(data, func(value []byte, dataType jsonparser.ValueType, offset int, err error) {
-		val, err := jsonparser.GetString(value, "name")
-		if err == nil {
-			println(val)
-			bucketnames = append(bucketnames, val)
-		}
-	})
+	config := Config{
+		Properties: []Property{
+			{Path: "./name", Type: "[]op"},
+		},
+	}
+	err := PickDeserializedUsingConfig(bytes.NewReader(data), config, "name", &bucketnames)
+	if err != nil {
+		log.Fatal(err)
+		return []string{}
+	}
 	return bucketnames
 }
 
 func getAllStatsEndpoints(data []byte, bucketname string, ep *[]statsEndpoint) {
-	jsonparser.ArrayEach(data, func(value []byte, dataType jsonparser.ValueType, offset int, err error) {
-		if err != nil {
-			log.Fatal(err)
-		}
 
-		hostname, err := jsonparser.GetString(value, "hostname")
-		if err != nil {
-			log.Error("Unable to parse 'hostname' while getting stats endpoints for bucket[" + bucketname + "]")
-		} else {
-			statsuri, err := jsonparser.GetString(value, "stats", "uri")
-			if err == nil {
-				*ep = append(*ep, statsEndpoint{uri: statsuri, bucket: bucketname, node: hostname})
-			} else {
-				log.Error("Unable to parse 'stats/uri' while getting stats endpoints for bucket[" + bucketname + "]")
-			}
-		}
+	statsUriAlias := "statsUris"
+	hostnameAlias := "hostNames"
+	config := Config{
+		Properties: []Property{
+			{Path: "servers/hostname", Type: "[]o", Alias: &hostnameAlias},
+			{Path: "servers/stats/uri", Type: "[]op", Alias: &statsUriAlias},
+		},
+	}
+	var result struct {
+		Hostnames []string
+		StatsUris []string
+	}
 
-	}, "servers")
+	err := PickDeserializedUsingConfig(bytes.NewReader(data), config, "", &result)
+	if err != nil {
+		log.Fatal(err)
+	}
+	for i, _ := range result.Hostnames {
+		*ep = append(*ep, statsEndpoint{uri: result.StatsUris[i], bucket: bucketname, node: result.Hostnames[i]})
+	}
 }
 
 func populateStats(integration *sdk.Integration, bucketName string, hostName string, statsData []byte) {
@@ -241,38 +247,34 @@ func populateStats(integration *sdk.Integration, bucketName string, hostName str
 	ms.SetMetric("bucket", bucketName, metric.ATTRIBUTE)
 	ms.SetMetric("node", hostName, metric.ATTRIBUTE)
 
-	jsonparser.ObjectEach(statsData, func(key []byte, value []byte, dataType jsonparser.ValueType, offset int) error {
-		metricName, _ := jsonparser.ParseString(key)
-		if metricDef, ok := configuredMetrics[metricName]; ok {
-			var sumMetricSamples float64
-			var countMetricSamples float64
-			jsonparser.ArrayEach(value, func(sampleValueBytes []byte, sampleValueType jsonparser.ValueType, sampleOffset int, err error) {
-				if err == nil {
-					//TODO: Casting type needs to be detemined
-					sampleValue, err := jsonparser.ParseFloat(sampleValueBytes)
-					if err == nil {
-						sumMetricSamples = sumMetricSamples + sampleValue
-						countMetricSamples++
-					}
-					if sampleValueType != jsonparser.Number {
-						log.Error("Unexpected ValueType for metric: " + metricName)
-					}
-				} else {
-					log.Error("Error iterating sample for metric: ", metricName, err.Error())
-				}
-			})
-			metricValue := sumMetricSamples / countMetricSamples
-			switch metricDef.metricT {
-			case gauge:
-				ms.SetMetric(metricName, metricValue, metric.GAUGE)
-			case delta:
-				ms.SetMetric(metricName, metricValue, metric.DELTA)
-			case rate:
-				ms.SetMetric(metricName, metricValue, metric.RATE)
-			case attribute:
-				ms.SetMetric(metricName, metricValue, metric.ATTRIBUTE)
-			}
+	for metricName, metricDef := range configuredMetrics {
+		var sumMetricSamples float64
+		var countMetricSamples float64
+		metrics := []float64{}
+		metricPath := fmt.Sprintf("op/samples/%s", metricName)
+		config := Config{
+			Properties: []Property{
+				{Path: metricPath, Type: "[f]"},
+			},
 		}
-		return nil
-	}, "op", "samples")
+		err := PickDeserializedUsingConfig(bytes.NewReader(statsData), config, metricName, &metrics)
+		if err != nil {
+			log.Fatal(err)
+		}
+		for _, m := range metrics {
+			sumMetricSamples = sumMetricSamples + m
+			countMetricSamples++
+		}
+		metricValue := sumMetricSamples / countMetricSamples
+		switch metricDef.metricT {
+		case gauge:
+			ms.SetMetric(metricName, metricValue, metric.GAUGE)
+		case delta:
+			ms.SetMetric(metricName, metricValue, metric.DELTA)
+		case rate:
+			ms.SetMetric(metricName, metricValue, metric.RATE)
+		case attribute:
+			ms.SetMetric(metricName, metricValue, metric.ATTRIBUTE)
+		}
+	}
 }

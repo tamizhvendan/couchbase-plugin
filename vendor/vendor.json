@@ -7,6 +7,12 @@
 			"path": "github.com/buger/jsonparser",
 			"revision": "5096fddd2cca678b0801ece8513a06e580981fd2",
 			"revisionTime": "2017-10-14T09:43:26Z"
+		},
+		{
+			"checksumSHA1": "rJab1YdNhQooDiBWNnt7TLWPyBU=",
+			"path": "github.com/pkg/errors",
+			"revision": "f15c970de5b76fac0b59abb32d62c17cc7bed265",
+			"revisionTime": "2017-10-18T19:55:50Z"
 		}
 	],
 	"rootPath": "github.com/newrelic-experts/couchbase-plugin"
